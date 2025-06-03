@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# targets storage
+_targets/
+
+# scratch folder
+scratch/
+
+# in/ folder
+in/

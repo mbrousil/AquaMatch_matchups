@@ -1,0 +1,13 @@
+default:
+  # gmail account to associate with {googledrive}
+  google_email: "therossyndicate@gmail.com"
+  harmonize_repo_directory: "../AquaMatch_harmonize_WQP/"# The local directory 
+  # where the harmonize {targets} pipeline is located (i.e., the pipeline that
+  # runs the harmonize step)
+  chla_stable_date: "20240701"
+  sdd_stable_date: "20240701"
+  doc_stable_date: "20240701"
+  tc_stable_date: "20240701"
+  tss_stable_date: "20250131"
+  siteSR_repo_directory: "../AquaMatch_siteSR_WQP/"
+  siteSR_site_version_date: "2025-06-02"
