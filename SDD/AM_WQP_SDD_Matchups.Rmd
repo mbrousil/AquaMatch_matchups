@@ -92,11 +92,6 @@ make_matchups <- function(sat_fp, data, window) {
   left_join(matches, sat)
 }
 
-five_day_matches <- map2(.x = list(LS4_fp, LS5_fp, LS7_fp, LS8_fp, LS9_fp),
-                         .y = list(lakes_for_sat),
-                         make_matchups) %>% 
-  bind_rows()
-
-five_day_matches <- five_day_matches %>% 
-  left_join(., sdd)
 ```
+
+## Applying correction coefficients
