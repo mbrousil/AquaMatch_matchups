@@ -3,11 +3,9 @@
 .RData
 .Ruserdata
 
-# targets storage
-_targets/
-
 # scratch folder
 scratch/
 
-# in/ folder
-in/
+# dump dir folders
+SDD/in/feathers/
+SDD/in/EDI/
