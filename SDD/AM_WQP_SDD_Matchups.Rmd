@@ -64,11 +64,14 @@ observation/measurement) should be shorter. We use data.table functions for
 these applications because they are the most efficient for datasets of this
 size.
 
-The following function makes matchups based on the prescribed window.
+The following function makes matchups based on the prescribed window. (Note: See
+implementation of this for 5-day window in `code_ex/1_make_matches.R`, which
+came from my scratch folder in the siteSR repo, not tracked in Git. That is from
+an earlier version of the siteSR data, so there might need to be adjustments.)
 
 ```{r}
-#' @param sat_fp: filepath to the satellite data (here, eg `LS4_fp`)
-#' @param data: in situ data (here, eg ``)
+#' @param sat_fp: filepath to the satellite data
+#' @param data: in situ data 
 #' @param window: integer of number of days on either side of the insitu measuerment
 make_matchups <- function(sat_fp, data, window) {
   data <- data %>% 
@@ -77,6 +80,7 @@ make_matchups <- function(sat_fp, data, window) {
   sat <- read_csv(sat_fp) %>% 
     filter(siteSR_id %in% unique(data$siteSR_id))
   
+  # only grab id columns to make this a bit less computationally taxing
   sat_less <- sat %>% 
     select(sat_data_id, rowid, calc_date) 
   
@@ -86,6 +90,7 @@ make_matchups <- function(sat_fp, data, window) {
   setDT(sat)
   
   # overjoin using data.table syntax (cause this is biiiiiiig) and also filter in one step (also because of size)
+  # todo: change this to data.table::foverlaps() instead of this type of data.table join
   matches <- sat_less[data, on = .(rowid), allow.cartesian = TRUE][abs(as.integer(difftime(date, calc_date, units = "days"))) <= window]
   
   # add the sat data back in
@@ -95,3 +100,10 @@ make_matchups <- function(sat_fp, data, window) {
 ```
 
 ## Applying correction coefficients
+
+Apply the correction coefficients from lakeSR here. They will also eventually be
+in the data pub, but for now, grab from the lakeSR repo. One applicaiton for Roy
+(MLE) and one application for Gardner-style (poly). Also flag input reflectance
+beyond the input min/max values listed in the table. See implementation example
+in <https://github.com/steeleb/regional-clarity-RS-model/> (not on main repo
+yet) in the script `regional_clarity/3_make_models.R`.
