@@ -106,4 +106,8 @@ in the data pub, but for now, grab from the lakeSR repo. One applicaiton for Roy
 (MLE) and one application for Gardner-style (poly). Also flag input reflectance
 beyond the input min/max values listed in the table. See implementation example
 in <https://github.com/steeleb/regional-clarity-RS-model/> (not on main repo
-yet) in the script `regional_clarity/3_make_models.R`.
+yet) in the script `regional_clarity/3_make_models.R`. Note this example does
+not flag refelctance beyond min/max of input, but should probably be included in
+our data pub, there's an explanation as to why it's important for Gardner model
+especially in the bookdown. I'm pretty sure I have code for that somewhere if
+it's helpful.
