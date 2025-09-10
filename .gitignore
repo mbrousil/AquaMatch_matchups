@@ -1,0 +1,11 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# scratch folder
+scratch/
+
+# dump dir folders
+SDD/in/feathers/
+SDD/in/EDI/
