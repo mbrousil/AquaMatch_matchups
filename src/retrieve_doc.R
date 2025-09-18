@@ -79,11 +79,11 @@ if (!file.exists(file.path(edi_download_path, "edi_doc.feather"))) {
   
   if (class(wqp_doc$ActivityStartTime.TimeZoneCode)!="factor") wqp_doc$ActivityStartTime.TimeZoneCode<- as.factor(wqp_doc$ActivityStartTime.TimeZoneCode)
   if (class(wqp_doc$harmonized_tz)!="factor") wqp_doc$harmonized_tz<- as.factor(wqp_doc$harmonized_tz)                                   
-  # attempting to convert wqp_doc$harmonized_local_time dateTime string to R date structure (date or POSIXct)                                
-  tmpDateFormat<-"%Y-%m-%d %H:%M:%S" 
-  tmp1harmonized_local_time<-as.POSIXct(wqp_doc$harmonized_local_time,format=tmpDateFormat)
-  # Keep the new dates only if they all converted correctly
-  if(nrow(wqp_doc[wqp_doc$harmonized_local_time != "",]) == length(tmp1harmonized_local_time[!is.na(tmp1harmonized_local_time)])){wqp_doc$harmonized_local_time <- tmp1harmonized_local_time } else {print("Date conversion failed for wqp_doc$harmonized_local_time. Please inspect the data and do the date conversion yourself.")}                                                                    
+  # # attempting to convert wqp_doc$harmonized_local_time dateTime string to R date structure (date or POSIXct)                                
+  # tmpDateFormat<-"%Y-%m-%d %H:%M:%S" 
+  # tmp1harmonized_local_time<-as.POSIXct(wqp_doc$harmonized_local_time,format=tmpDateFormat)
+  # # Keep the new dates only if they all converted correctly
+  # if(nrow(wqp_doc[wqp_doc$harmonized_local_time != "",]) == length(tmp1harmonized_local_time[!is.na(tmp1harmonized_local_time)])){wqp_doc$harmonized_local_time <- tmp1harmonized_local_time } else {print("Date conversion failed for wqp_doc$harmonized_local_time. Please inspect the data and do the date conversion yourself.")}                                                                    
   
   # attempting to convert wqp_doc$harmonized_utc dateTime string to R date structure (date or POSIXct)                                
   tmpDateFormat<-"%Y-%m-%dT%H:%M:%S"
@@ -143,7 +143,7 @@ if (!file.exists(file.path(edi_download_path, "edi_doc.feather"))) {
   rm(infile1, 
      inUrl1, 
      tmp1ActivityStartDate, 
-     tmp1harmonized_local_time, 
+     # tmp1harmonized_local_time, 
      tmp1harmonized_utc, 
      tmpDateFormat)
   

@@ -78,11 +78,11 @@ if (!file.exists(file.path(edi_download_path, "edi_tss.feather"))) {
   
   if (class(wqp_tss$ActivityStartTime.TimeZoneCode)!="factor") wqp_tss$ActivityStartTime.TimeZoneCode<- as.factor(wqp_tss$ActivityStartTime.TimeZoneCode)
   if (class(wqp_tss$harmonized_tz)!="factor") wqp_tss$harmonized_tz<- as.factor(wqp_tss$harmonized_tz)                                   
-  # attempting to convert wqp_tss$harmonized_local_time dateTime string to R date structure (date or POSIXct)                                
-  tmpDateFormat<-"%Y-%m-%d %H:%M:%S" 
-  tmp1harmonized_local_time<-as.POSIXct(wqp_tss$harmonized_local_time,format=tmpDateFormat)
-  # Keep the new dates only if they all converted correctly
-  if(nrow(wqp_tss[wqp_tss$harmonized_local_time != "",]) == length(tmp1harmonized_local_time[!is.na(tmp1harmonized_local_time)])){wqp_tss$harmonized_local_time <- tmp1harmonized_local_time } else {print("Date conversion failed for wqp_tss$harmonized_local_time. Please inspect the data and do the date conversion yourself.")}                                                                    
+  # # attempting to convert wqp_tss$harmonized_local_time dateTime string to R date structure (date or POSIXct)                                
+  # tmpDateFormat<-"%Y-%m-%d %H:%M:%S" 
+  # tmp1harmonized_local_time<-as.POSIXct(wqp_tss$harmonized_local_time,format=tmpDateFormat)
+  # # Keep the new dates only if they all converted correctly
+  # if(nrow(wqp_tss[wqp_tss$harmonized_local_time != "",]) == length(tmp1harmonized_local_time[!is.na(tmp1harmonized_local_time)])){wqp_tss$harmonized_local_time <- tmp1harmonized_local_time } else {print("Date conversion failed for wqp_tss$harmonized_local_time. Please inspect the data and do the date conversion yourself.")}                                                                    
   
   # attempting to convert wqp_tss$harmonized_utc dateTime string to R date structure (date or POSIXct)                                
   tmpDateFormat<-"%Y-%m-%dT%H:%M:%S"
@@ -146,7 +146,7 @@ if (!file.exists(file.path(edi_download_path, "edi_tss.feather"))) {
   rm(infile1, 
      inUrl1, 
      tmp1ActivityStartDate, 
-     tmp1harmonized_local_time, 
+     # tmp1harmonized_local_time, 
      tmp1harmonized_utc, 
      tmpDateFormat)
   
