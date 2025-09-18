@@ -5,7 +5,15 @@
 
 # scratch folder
 scratch/
+  
+# Data files
+*.rds
+*.feather
+in/siteSR_data/siteSR_collated_sites_LT05_DSWE1_2025-02-24_export.csv
+in/siteSR_data/siteSR_collated_sites_LT04_DSWE1_2025-02-24_export.csv
+in/siteSR_data/siteSR_collated_sites_LE07_DSWE1_2025-02-24_export.csv
+in/siteSR_data/siteSR_collated_sites_LC09_DSWE1_2025-02-24_export.csv
+in/siteSR_data/siteSR_collated_sites_LC08_DSWE1_2025-02-24_export.csv
 
-# dump dir folders
-SDD/in/feathers/
-SDD/in/EDI/
+*.DS_Store
+

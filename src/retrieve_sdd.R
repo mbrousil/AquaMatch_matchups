@@ -1,0 +1,160 @@
+# Adapted from https://portal.edirepository.org/nis/codegenerationdownload?filename=edi.1856.1.r
+
+# Package ID: edi.1856.1 Cataloging System:https://pasta.edirepository.org.
+# Data set title: AquaMatch Secchi Disk Depth Data from Water Quality Portal: ~1970-2024.
+# Data set creator:  Juan De La Torre - Colorado State University 
+# Data set creator:  B Steele - Colorado State University 
+# Data set creator:  Matthew Brousil - Colorado State University 
+# Data set creator:  Michael Meyer - United States Geological Survey 
+# Data set creator:  Katie Willi - Colorado State University 
+# Data set creator:  Matthew Ross - Colorado State University 
+# Metadata Provider:  Juan De La Torre - Colorado State University 
+# Metadata Provider:  Matthew Brousil - Colorado State University 
+# Contact:  Matthew Brousil -  Colorado State University  - matthew.brousil@colostate.edu
+# Contact:  Michael Meyer -  United States Geological Survey  - mfmeyer@usgs.gov
+# Stylesheet v2.15 for metadata conversion into program: John H. Porter, Univ. Virginia, jporter@virginia.edu      
+
+if (!file.exists(file.path(edi_download_path, "edi_sdd.feather"))) {
+  
+  options(HTTPUserAgent="EDI_CodeGen")
+  
+  inUrl1  <- "https://pasta.lternet.edu/package/data/eml/edi/1856/1/723fe7603c501a8e68b0f468a30f523a" 
+  infile1 <- tempfile()
+  try(download.file(inUrl1,infile1,method="curl",extra=paste0(' -A "',getOption("HTTPUserAgent"),'"')))
+  if (is.na(file.size(infile1))) download.file(inUrl1,infile1,method="auto")
+  
+  wqp_sdd <-read.csv(infile1,header=F 
+                     ,skip=1
+                     ,sep=","  
+                     ,quot='"' 
+                     , col.names=c(
+                       "parameter",     
+                       "OrganizationIdentifier",     
+                       "MonitoringLocationIdentifier",     
+                       "MonitoringLocationTypeName",     
+                       "ResolvedMonitoringLocationTypeName",     
+                       "ActivityStartDate",     
+                       "ActivityStartTime.Time",     
+                       "ActivityStartTime.TimeZoneCode",     
+                       "harmonized_tz",     
+                       "harmonized_local_time",     
+                       "harmonized_utc",     
+                       "ActivityStartDateTime",     
+                       "harmonized_top_depth_value",     
+                       "harmonized_top_depth_unit",     
+                       "harmonized_bottom_depth_value",     
+                       "harmonized_bottom_depth_unit",     
+                       "harmonized_discrete_depth_value",     
+                       "harmonized_discrete_depth_unit",     
+                       "depth_flag",     
+                       "mdl_flag",     
+                       "approx_flag",     
+                       "greater_flag",     
+                       "tier",     
+                       "field_flag",     
+                       "misc_flag",     
+                       "subgroup_id",     
+                       "harmonized_row_count",     
+                       "harmonized_units",     
+                       "harmonized_value",     
+                       "harmonized_value_cv",     
+                       "lat",     
+                       "lon",     
+                       "datum"    ), check.names=TRUE)
+  
+  unlink(infile1)
+  
+  # Fix any interval or ratio columns mistakenly read in as nominal and nominal columns read as numeric or dates read as strings
+  
+  if (class(wqp_sdd$parameter)!="factor") wqp_sdd$parameter<- as.factor(wqp_sdd$parameter)
+  if (class(wqp_sdd$OrganizationIdentifier)!="factor") wqp_sdd$OrganizationIdentifier<- as.factor(wqp_sdd$OrganizationIdentifier)
+  if (class(wqp_sdd$MonitoringLocationIdentifier)!="factor") wqp_sdd$MonitoringLocationIdentifier<- as.factor(wqp_sdd$MonitoringLocationIdentifier)
+  if (class(wqp_sdd$MonitoringLocationTypeName)!="factor") wqp_sdd$MonitoringLocationTypeName<- as.factor(wqp_sdd$MonitoringLocationTypeName)
+  if (class(wqp_sdd$ResolvedMonitoringLocationTypeName)!="factor") wqp_sdd$ResolvedMonitoringLocationTypeName<- as.factor(wqp_sdd$ResolvedMonitoringLocationTypeName)                                   
+  # attempting to convert wqp_sdd$ActivityStartDate dateTime string to R date structure (date or POSIXct)                                
+  tmpDateFormat<-"%Y-%m-%d"
+  tmp1ActivityStartDate<-as.Date(wqp_sdd$ActivityStartDate,format=tmpDateFormat)
+  # Keep the new dates only if they all converted correctly
+  if(nrow(wqp_sdd[wqp_sdd$ActivityStartDate != "",]) == length(tmp1ActivityStartDate[!is.na(tmp1ActivityStartDate)])){wqp_sdd$ActivityStartDate <- tmp1ActivityStartDate } else {print("Date conversion failed for wqp_sdd$ActivityStartDate. Please inspect the data and do the date conversion yourself.")}                                                                    
+  
+  if (class(wqp_sdd$ActivityStartTime.TimeZoneCode)!="factor") wqp_sdd$ActivityStartTime.TimeZoneCode<- as.factor(wqp_sdd$ActivityStartTime.TimeZoneCode)
+  if (class(wqp_sdd$harmonized_tz)!="factor") wqp_sdd$harmonized_tz<- as.factor(wqp_sdd$harmonized_tz)                                   
+  # attempting to convert wqp_sdd$harmonized_local_time dateTime string to R date structure (date or POSIXct)                                
+  tmpDateFormat<-"%Y-%m-%d %H:%M:%S" 
+  tmp1harmonized_local_time<-as.POSIXct(wqp_sdd$harmonized_local_time,format=tmpDateFormat)
+  # Keep the new dates only if they all converted correctly
+  if(nrow(wqp_sdd[wqp_sdd$harmonized_local_time != "",]) == length(tmp1harmonized_local_time[!is.na(tmp1harmonized_local_time)])){wqp_sdd$harmonized_local_time <- tmp1harmonized_local_time } else {print("Date conversion failed for wqp_sdd$harmonized_local_time. Please inspect the data and do the date conversion yourself.")}                                                                    
+  
+  # attempting to convert wqp_sdd$harmonized_utc dateTime string to R date structure (date or POSIXct)                                
+  tmpDateFormat<-"%Y-%m-%dT%H:%M:%S"
+  tmp1harmonized_utc<-as.POSIXct(wqp_sdd$harmonized_utc,format=tmpDateFormat,tz='UTC')
+  # Keep the new dates only if they all converted correctly
+  if(nrow(wqp_sdd[wqp_sdd$harmonized_utc != "",]) == length(tmp1harmonized_utc[!is.na(tmp1harmonized_utc)])){wqp_sdd$harmonized_utc <- tmp1harmonized_utc } else {print("Date conversion failed for wqp_sdd$harmonized_utc. Please inspect the data and do the date conversion yourself.")}                                                                    
+  
+  if (class(wqp_sdd$ActivityStartDateTime)!="factor") wqp_sdd$ActivityStartDateTime<- as.factor(wqp_sdd$ActivityStartDateTime)
+  if (class(wqp_sdd$harmonized_top_depth_value)=="factor") wqp_sdd$harmonized_top_depth_value <-as.numeric(levels(wqp_sdd$harmonized_top_depth_value))[as.integer(wqp_sdd$harmonized_top_depth_value) ]               
+  if (class(wqp_sdd$harmonized_top_depth_value)=="character") wqp_sdd$harmonized_top_depth_value <-as.numeric(wqp_sdd$harmonized_top_depth_value)
+  if (class(wqp_sdd$harmonized_top_depth_unit)!="factor") wqp_sdd$harmonized_top_depth_unit<- as.factor(wqp_sdd$harmonized_top_depth_unit)
+  if (class(wqp_sdd$harmonized_bottom_depth_value)=="factor") wqp_sdd$harmonized_bottom_depth_value <-as.numeric(levels(wqp_sdd$harmonized_bottom_depth_value))[as.integer(wqp_sdd$harmonized_bottom_depth_value) ]               
+  if (class(wqp_sdd$harmonized_bottom_depth_value)=="character") wqp_sdd$harmonized_bottom_depth_value <-as.numeric(wqp_sdd$harmonized_bottom_depth_value)
+  if (class(wqp_sdd$harmonized_bottom_depth_unit)!="factor") wqp_sdd$harmonized_bottom_depth_unit<- as.factor(wqp_sdd$harmonized_bottom_depth_unit)
+  if (class(wqp_sdd$harmonized_discrete_depth_value)=="factor") wqp_sdd$harmonized_discrete_depth_value <-as.numeric(levels(wqp_sdd$harmonized_discrete_depth_value))[as.integer(wqp_sdd$harmonized_discrete_depth_value) ]               
+  if (class(wqp_sdd$harmonized_discrete_depth_value)=="character") wqp_sdd$harmonized_discrete_depth_value <-as.numeric(wqp_sdd$harmonized_discrete_depth_value)
+  if (class(wqp_sdd$harmonized_discrete_depth_unit)!="factor") wqp_sdd$harmonized_discrete_depth_unit<- as.factor(wqp_sdd$harmonized_discrete_depth_unit)
+  if (class(wqp_sdd$depth_flag)!="factor") wqp_sdd$depth_flag<- as.factor(wqp_sdd$depth_flag)
+  if (class(wqp_sdd$mdl_flag)!="factor") wqp_sdd$mdl_flag<- as.factor(wqp_sdd$mdl_flag)
+  if (class(wqp_sdd$approx_flag)!="factor") wqp_sdd$approx_flag<- as.factor(wqp_sdd$approx_flag)
+  if (class(wqp_sdd$greater_flag)!="factor") wqp_sdd$greater_flag<- as.factor(wqp_sdd$greater_flag)
+  if (class(wqp_sdd$tier)!="factor") wqp_sdd$tier<- as.factor(wqp_sdd$tier)
+  if (class(wqp_sdd$field_flag)!="factor") wqp_sdd$field_flag<- as.factor(wqp_sdd$field_flag)
+  if (class(wqp_sdd$misc_flag)!="factor") wqp_sdd$misc_flag<- as.factor(wqp_sdd$misc_flag)
+  if (class(wqp_sdd$subgroup_id)!="factor") wqp_sdd$subgroup_id<- as.factor(wqp_sdd$subgroup_id)
+  if (class(wqp_sdd$harmonized_row_count)=="factor") wqp_sdd$harmonized_row_count <-as.numeric(levels(wqp_sdd$harmonized_row_count))[as.integer(wqp_sdd$harmonized_row_count) ]               
+  if (class(wqp_sdd$harmonized_row_count)=="character") wqp_sdd$harmonized_row_count <-as.numeric(wqp_sdd$harmonized_row_count)
+  if (class(wqp_sdd$harmonized_units)!="factor") wqp_sdd$harmonized_units<- as.factor(wqp_sdd$harmonized_units)
+  if (class(wqp_sdd$harmonized_value)=="factor") wqp_sdd$harmonized_value <-as.numeric(levels(wqp_sdd$harmonized_value))[as.integer(wqp_sdd$harmonized_value) ]               
+  if (class(wqp_sdd$harmonized_value)=="character") wqp_sdd$harmonized_value <-as.numeric(wqp_sdd$harmonized_value)
+  if (class(wqp_sdd$harmonized_value_cv)=="factor") wqp_sdd$harmonized_value_cv <-as.numeric(levels(wqp_sdd$harmonized_value_cv))[as.integer(wqp_sdd$harmonized_value_cv) ]               
+  if (class(wqp_sdd$harmonized_value_cv)=="character") wqp_sdd$harmonized_value_cv <-as.numeric(wqp_sdd$harmonized_value_cv)
+  if (class(wqp_sdd$lat)=="factor") wqp_sdd$lat <-as.numeric(levels(wqp_sdd$lat))[as.integer(wqp_sdd$lat) ]               
+  if (class(wqp_sdd$lat)=="character") wqp_sdd$lat <-as.numeric(wqp_sdd$lat)
+  if (class(wqp_sdd$lon)=="factor") wqp_sdd$lon <-as.numeric(levels(wqp_sdd$lon))[as.integer(wqp_sdd$lon) ]               
+  if (class(wqp_sdd$lon)=="character") wqp_sdd$lon <-as.numeric(wqp_sdd$lon)
+  if (class(wqp_sdd$datum)!="factor") wqp_sdd$datum<- as.factor(wqp_sdd$datum)
+  
+  # Convert Missing Values to NA for non-dates
+  
+  wqp_sdd$ActivityStartTime.TimeZoneCode <- as.factor(ifelse((trimws(as.character(wqp_sdd$ActivityStartTime.TimeZoneCode))==trimws("NA")),NA,as.character(wqp_sdd$ActivityStartTime.TimeZoneCode)))
+  wqp_sdd$ActivityStartDateTime <- as.factor(ifelse((trimws(as.character(wqp_sdd$ActivityStartDateTime))==trimws("NA")),NA,as.character(wqp_sdd$ActivityStartDateTime)))
+  wqp_sdd$harmonized_top_depth_value <- ifelse((trimws(as.character(wqp_sdd$harmonized_top_depth_value))==trimws("NA")),NA,wqp_sdd$harmonized_top_depth_value)               
+  suppressWarnings(wqp_sdd$harmonized_top_depth_value <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.character(wqp_sdd$harmonized_top_depth_value))==as.character(as.numeric("NA"))),NA,wqp_sdd$harmonized_top_depth_value))
+  wqp_sdd$harmonized_top_depth_unit <- as.factor(ifelse((trimws(as.character(wqp_sdd$harmonized_top_depth_unit))==trimws("NA")),NA,as.character(wqp_sdd$harmonized_top_depth_unit)))
+  wqp_sdd$harmonized_bottom_depth_value <- ifelse((trimws(as.character(wqp_sdd$harmonized_bottom_depth_value))==trimws("NA")),NA,wqp_sdd$harmonized_bottom_depth_value)               
+  suppressWarnings(wqp_sdd$harmonized_bottom_depth_value <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.character(wqp_sdd$harmonized_bottom_depth_value))==as.character(as.numeric("NA"))),NA,wqp_sdd$harmonized_bottom_depth_value))
+  wqp_sdd$harmonized_bottom_depth_unit <- as.factor(ifelse((trimws(as.character(wqp_sdd$harmonized_bottom_depth_unit))==trimws("NA")),NA,as.character(wqp_sdd$harmonized_bottom_depth_unit)))
+  wqp_sdd$harmonized_discrete_depth_value <- ifelse((trimws(as.character(wqp_sdd$harmonized_discrete_depth_value))==trimws("NA")),NA,wqp_sdd$harmonized_discrete_depth_value)               
+  suppressWarnings(wqp_sdd$harmonized_discrete_depth_value <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.character(wqp_sdd$harmonized_discrete_depth_value))==as.character(as.numeric("NA"))),NA,wqp_sdd$harmonized_discrete_depth_value))
+  wqp_sdd$harmonized_discrete_depth_unit <- as.factor(ifelse((trimws(as.character(wqp_sdd$harmonized_discrete_depth_unit))==trimws("NA")),NA,as.character(wqp_sdd$harmonized_discrete_depth_unit)))
+  wqp_sdd$misc_flag <- as.factor(ifelse((trimws(as.character(wqp_sdd$misc_flag))==trimws("NA")),NA,as.character(wqp_sdd$misc_flag)))
+  wqp_sdd$harmonized_value_cv <- ifelse((trimws(as.character(wqp_sdd$harmonized_value_cv))==trimws("NA")),NA,wqp_sdd$harmonized_value_cv)               
+  suppressWarnings(wqp_sdd$harmonized_value_cv <- ifelse(!is.na(as.numeric("NA")) & (trimws(as.character(wqp_sdd$harmonized_value_cv))==as.character(as.numeric("NA"))),NA,wqp_sdd$harmonized_value_cv))
+  
+  # Save the file for future runs
+  write_feather(wqp_sdd, file.path(edi_download_path, "edi_sdd.feather"))
+  
+  # Clean up workspace
+  rm(infile1, 
+     inUrl1, 
+     tmp1ActivityStartDate, 
+     tmp1harmonized_local_time, 
+     tmp1harmonized_utc, 
+     tmpDateFormat)
+  
+  gc()
+  
+  # If the file does exist, just read in
+} else { 
+  
+  wqp_sdd <- read_feather(file.path(edi_download_path, "edi_sdd.feather"))
+  
+}
