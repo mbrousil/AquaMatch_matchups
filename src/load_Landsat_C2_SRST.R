@@ -31,7 +31,7 @@ LS9_fp <- file.path(rs_download_path, "siteSR_collated_sites_LC09_DSWE1_2025-02-
 
 # grab site ids with datestamp, arrange and grab the top one (most recent according 
 # to the date)
-site_drive_ids <- read_csv("SDD/in/RS_visible_sites_drive_ids.csv") %>% 
+site_drive_ids <- read_csv("in/siteSR_data/RS_visible_sites_drive_ids.csv") %>% 
   filter(grepl("\\d{4}", name)) %>% 
   arrange(desc(name)) %>% 
   slice(1)
