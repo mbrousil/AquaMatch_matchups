@@ -101,27 +101,32 @@ an earlier version of the siteSR data, so there might need to be adjustments.)
 
 ```{r}
 #' @param sat_fp: filepath to the satellite data
-#' @param data: in situ data 
+#' @param wqp_data: in situ data 
 #' @param window: integer of number of days on either side of the insitu measuerment
-make_matchups <- function(sat_fp, data, window) {
-  data <- data %>% 
-    mutate(harmonized_utc = force_tz(harmonized_utc, "UTC"),
-           date = ymd(format(harmonized_utc, "%Y-%m-%d")))
+make_matchups <- function(sat_fp, wqp_data, window) {
+  
+  wqp_data <- wqp_data %>% 
+    # Create min and max times
+    mutate(
+      min_time = harmonized_utc - days(window),
+      max_time = harmonized_utc + days(window)
+    )
+  
   sat <- read_csv(sat_fp) %>% 
-    filter(siteSR_id %in% unique(data$siteSR_id))
+    filter(siteSR_id %in% unique(wqp_data$siteSR_id))
   
   # only grab id columns to make this a bit less computationally taxing
   sat_less <- sat %>% 
     select(sat_data_id, rowid, calc_date) 
   
   # coerce to data.table
-  setDT(data)
+  setDT(wqp_data)
   setDT(sat_less)
   setDT(sat)
   
   # overjoin using data.table syntax (cause this is biiiiiiig) and also filter in one step (also because of size)
   # todo: change this to data.table::foverlaps() instead of this type of data.table join
-  matches <- sat_less[data, on = .(rowid), allow.cartesian = TRUE][abs(as.integer(difftime(date, calc_date, units = "days"))) <= window]
+  matches <- sat_less[wqp_data, on = .(rowid), allow.cartesian = TRUE][abs(as.integer(difftime(date, calc_date, units = "days"))) <= window]
   
   # add the sat data back in
   left_join(matches, sat)
