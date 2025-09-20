@@ -18,6 +18,7 @@ library(data.table)
 library(sf)
 library(arrow)
 library(googledrive)
+library(tictoc)
 
 # Files sourced from Drive are available to any Google User, the console will walk through authentication steps.
 drive_auth()
@@ -82,6 +83,9 @@ if (!dir.exists(rs_download_path)) {
 # This may take several minutes if the files have not yet been downloaded.
 # Landsat 4-9 paths are loaded in place of the files themselves due to their size. 
 source("src/load_Landsat_C2_SRST.R")
+
+# Confirm that site location data were loaded
+dim(site_locs)
 ```
 
 
@@ -94,43 +98,77 @@ observation/measurement) should be shorter. We use data.table functions for
 these applications because they are the most efficient for datasets of this
 size.
 
-The following function makes matchups based on the prescribed window. (Note: See
-implementation of this for 5-day window in `code_ex/1_make_matches.R`, which
-came from my scratch folder in the siteSR repo, not tracked in Git. That is from
-an earlier version of the siteSR data, so there might need to be adjustments.)
+The following function makes matchups based on the prescribed window:
 
-```{r}
-#' @param sat_fp: filepath to the satellite data
+```{r define-matchup-function}
+#' @param sat_fp: Vector of filepaths to the satellite data
 #' @param wqp_data: in situ data 
-#' @param window: integer of number of days on either side of the insitu measuerment
-make_matchups <- function(sat_fp, wqp_data, window) {
+#' @param site_info Data frame of site metadata containing loc_id and siteSR_id cols
+#' @param window: Integer of number of days on either side of the insitu measuerment
+make_matchups <- function(sat_fp, wqp_data, site_info, window) {
   
+  # Create min and max times within WQP data corresponding to specified window
   wqp_data <- wqp_data %>% 
-    # Create min and max times
     mutate(
       min_time = harmonized_utc - days(window),
       max_time = harmonized_utc + days(window)
     )
   
-  sat <- read_csv(sat_fp) %>% 
-    filter(siteSR_id %in% unique(wqp_data$siteSR_id))
+  # Add siteSR_id to WQP data to allow join with siteSR
+  wqp_w_ids <- wqp_data %>%
+    left_join(x = .,
+              y = select(site_info, loc_id, siteSR_id),
+              by = c("MonitoringLocationIdentifier" = "loc_id"))
   
-  # only grab id columns to make this a bit less computationally taxing
-  sat_less <- sat %>% 
-    select(sat_data_id, rowid, calc_date) 
+  # Iterate over 
+  wqp_matchups <- map(
+    .x = sat_fp,
+    .f = ~{
+      temp_file <- read_feather(file = .x) %>%
+        filter(siteSR_id %in% unique(wqp_w_ids$siteSR_id)) %>%
+        mutate(utc_time = ymd_hms(paste(date, "12:00:00"), tz = "UTC"),
+               # This duplicate column will be sacrified during the join below
+               utc_time2 = utc_time)
+      
+      # Time range join with data.table
+      matchup <- data.table(wqp_w_ids)[data.table(temp_file),
+                                       on = .(siteSR_id,
+                                              max_time >= utc_time2,
+                                              min_time <= utc_time2),
+                                       nomatch = NULL] %>%
+        as_tibble() %>%
+        # Calc time difference between reported in situ time and overpass time
+        mutate(time_diff = round(
+          difftime(harmonized_utc, utc_time, units = "hours"),
+          digits = 1)
+        )
+      
+      # Clean up
+      rm(temp_file)
+      gc()
+      
+      return(matchup)
+    }
+  ) %>%
+    # Stack matchups across all missions 
+    bind_rows()
   
-  # coerce to data.table
-  setDT(wqp_data)
-  setDT(sat_less)
-  setDT(sat)
-  
-  # overjoin using data.table syntax (cause this is biiiiiiig) and also filter in one step (also because of size)
-  # todo: change this to data.table::foverlaps() instead of this type of data.table join
-  matches <- sat_less[wqp_data, on = .(rowid), allow.cartesian = TRUE][abs(as.integer(difftime(date, calc_date, units = "days"))) <= window]
-  
-  # add the sat data back in
-  left_join(matches, sat)
+  # Return to user with addition of col indicating datetime of (in situ - overpass)
+  wqp_matchups
 }
+```
+
+Perform the matchups:
+```{r make-matchups}
+# Time the process with tictoc
+tic()
+siteSR_matchups <- make_matchups(
+  sat_fp = c(LS4_fp, LS5_fp, LS7_fp, LS8_fp, LS9_fp),
+  wqp_data = all_in_situ, 
+  site_info = site_locs,
+  window = 5
+)
+toc()
 
 ```
 
@@ -146,3 +184,22 @@ not flag refelctance beyond min/max of input, but should probably be included in
 our data pub, there's an explanation as to why it's important for Gardner model
 especially in the bookdown. I'm pretty sure I have code for that somewhere if
 it's helpful.
+
+```{r apply-handoffs}
+# Placeholder for handoff coefficients
+```
+
+Export the final product:
+```{r export}
+# Where to export the matchup data
+output_path <- "out/"
+
+# Check for download directory, make if it does not exist
+if (!dir.exists(output_path)) {
+  dir.create(output_path)
+}
+
+# Export matchups
+write_feather(x = siteSR_matchups,
+              sink = file.path(output_path, "siteSR_matchups.feather"))
+```
