@@ -108,10 +108,10 @@ The following function makes matchups based on the prescribed window:
 make_matchups <- function(sat_fp, wqp_data, site_info, window) {
   
   # Create min and max times within WQP data corresponding to specified window
-  wqp_data <- wqp_data %>% 
+  wqp_data <- wqp_data %>%
     mutate(
-      min_time = harmonized_utc - days(window),
-      max_time = harmonized_utc + days(window)
+      min_time = ActivityStartDate - days(window),
+      max_time = ActivityStartDate + days(window)
     )
   
   # Add siteSR_id to WQP data to allow join with siteSR
@@ -126,22 +126,18 @@ make_matchups <- function(sat_fp, wqp_data, site_info, window) {
     .f = ~{
       temp_file <- read_feather(file = .x) %>%
         filter(siteSR_id %in% unique(wqp_w_ids$siteSR_id)) %>%
-        mutate(utc_time = ymd_hms(paste(date, "12:00:00"), tz = "UTC"),
-               # This duplicate column will be sacrified during the join below
-               utc_time2 = utc_time)
+        # This duplicate column will be sacrified during the join below
+        mutate(join_date = date)
       
       # Time range join with data.table
       matchup <- data.table(wqp_w_ids)[data.table(temp_file),
                                        on = .(siteSR_id,
-                                              max_time >= utc_time2,
-                                              min_time <= utc_time2),
+                                              max_time >= join_date,
+                                              min_time <= join_date),
                                        nomatch = NULL] %>%
         as_tibble() %>%
         # Calc time difference between reported in situ time and overpass time
-        mutate(time_diff = round(
-          difftime(harmonized_utc, utc_time, units = "hours"),
-          digits = 1)
-        )
+        mutate(time_diff = ActivityStartDate - date)
       
       # Clean up
       rm(temp_file)
@@ -160,7 +156,7 @@ make_matchups <- function(sat_fp, wqp_data, site_info, window) {
 
 Perform the matchups:
 ```{r make-matchups}
-# Time the process with tictoc
+# Time the process with {tictoc}
 tic()
 siteSR_matchups <- make_matchups(
   sat_fp = c(LS4_fp, LS5_fp, LS7_fp, LS8_fp, LS9_fp),
