@@ -357,24 +357,16 @@ ggplot() +
                 ymin = 1, ymax = 10^6,
                 fill = q_values),
             color = NA) +
-  geom_density(data = quantile_plot_data, position = "dodge",
-               aes(x = harmonized_value, color = dataset),
-               fill = NA) +
   facet_wrap(vars(param_units), scales = "free") +
   scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
                 labels = trans_format("log10", math_format(10^.x))) +
   scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
                 labels = trans_format("log10", math_format(10^.x))) +
-  # geom_histogram(data = quantile_plot_data, position = "dodge",
-  #                aes(x = harmonized_value, color = dataset),
-  #                fill = "gray70",
-  #                bins = 50,
-  #                size = 0.5) +
-  # geom_density(data = quantile_plot_data, position = "dodge",
-  #              aes(x = harmonized_value, color = dataset),
-  #              fill = NA) +
+  geom_freqpoly(data = quantile_plot_data, position = "dodge",
+               aes(x = harmonized_value, color = dataset)) +
   scale_fill_manual(values = quantile_colors, name = "Matchup quantiles") +
   scale_color_manual(values = c("red3", "black"), name = "Dataset") + 
+  theme_bw() +
   theme(legend.position = "top", legend.direction = "horizontal", legend.box = "vertical") +
   ylab("Count") + 
   xlab("Depth or Concentration") +
