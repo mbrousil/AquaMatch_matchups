@@ -202,8 +202,8 @@ siteSR_matchups %>%
 ```
 
 
-We can move ahead to plotting the geographic record distribution. Conterminous U.S. only:
-```{r make-maps}
+We can move ahead to plotting the geographic record distribution. Here they are for broken down by the `parameter` column within the conterminous U.S.:
+```{r make-param-maps}
 state_selection <- states(progress_bar = FALSE) %>%
   st_transform(crs = 9311)
 
@@ -248,7 +248,7 @@ trim_recs %>%
                        breaks = breaks_log(n = 6),
                        labels = label_number(big.mark = ",")) +
   ggtitle(
-    label = "Record counts across the US by parameter",
+    label = "Matchup counts across the US by parameter",
     subtitle = paste0(
       "Not shown: ",
       comma(nrow(matchups_sf[non_conterminous_us,])),
@@ -261,6 +261,35 @@ trim_recs %>%
     legend.key.width = unit(1, "cm")
   )
 
+
+# Clean up the objects after using them
+rm(conterminous_us, non_conterminous_us, trim_recs)
+gc()
+```
+
+And here is a plot of all records, not limited to the conterminous U.S.:
+```{r make-full-map}
+matchups_sf %>%
+  sf_to_df(fill = TRUE) %>%
+  ggplot() +
+  geom_hex(aes(x = x, y = y)) +
+  geom_sf(data = state_selection,
+          color = "black",
+          fill = NA) +
+  xlab(NULL) +
+  ylab(NULL) +
+  scale_fill_viridis_c("Record count",
+                       trans = "log",
+                       breaks = breaks_log(n = 6),
+                       labels = label_number(big.mark = ",")) +
+  ggtitle(label = "Matchup counts") +
+  theme_bw() +
+  theme(
+    legend.position = "bottom",
+    legend.key.width = unit(1.25, "cm")
+  )
+
+gc()
 ```
 
 
