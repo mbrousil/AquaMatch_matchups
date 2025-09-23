@@ -24,7 +24,7 @@ library(scales)
 library(tigris)
 
 # Files sourced from Drive are available to any Google User, the console will walk through authentication steps.
-drive_auth()
+drive_auth("therossyndicate@gmail.com")
 ```
 
 # Purpose
@@ -50,7 +50,7 @@ Total Suspended Solids, etc.) to download from EDI.
 
 ```{r download-edi}
 # Where to put the data
-edi_download_path <- "in/edi_data/"
+edi_download_path <- "in/edi_data"
 
 # Check for download directory, make if it does not exist
 if (!dir.exists(edi_download_path)) {
@@ -77,6 +77,9 @@ source(file = "src/retrieve_sdd.R")
 source(file = "src/retrieve_tss.R")
 
 all_in_situ <- bind_rows(wqp_chla, wqp_doc, wqp_sdd, wqp_tss)
+
+write_feather(x = all_in_situ,
+              sink = file.path(edi_download_path, "all_in_situ_wqp.feather"))
 
 rm(wqp_chla, wqp_doc, wqp_sdd, wqp_tss)
 gc()
@@ -181,12 +184,10 @@ siteSR_matchups <- make_matchups(
 )
 toc()
 
-```
-
-We'll remove large unnecessary objects before doing any further calculations:
-```{r cleanup}
-rm(all_in_situ, site_locs)
+# Remove unnecessary
+rm(site_locs)
 gc()
+
 ```
 
 ## Visualize matchups
@@ -235,7 +236,8 @@ trim_recs <- matchups_sf[conterminous_us, ] %>%
 
 trim_recs %>%
   ggplot() +
-  geom_hex(aes(x = x, y = y)) +
+  geom_hex(aes(x = x, y = y),
+           binwidth = 100000) +
   geom_sf(data = conterminous_us,
           color = "black",
           fill = NA) +
@@ -272,7 +274,8 @@ And here is a plot of all records, not limited to the conterminous U.S.:
 matchups_sf %>%
   sf_to_df(fill = TRUE) %>%
   ggplot() +
-  geom_hex(aes(x = x, y = y)) +
+  geom_hex(aes(x = x, y = y),
+           binwidth = 100000) +
   geom_sf(data = state_selection,
           color = "black",
           fill = NA) +
@@ -289,7 +292,94 @@ matchups_sf %>%
     legend.key.width = unit(1.25, "cm")
   )
 
+rm(matchups_sf, state_selection)
 gc()
+```
+
+```{r plot-quantiles}
+siteSR_quantile_df <- siteSR_matchups %>%
+  select(parameter, harmonized_value, harmonized_units) %>%
+  mutate(dataset = "AquaMatch matchups") 
+
+quantile_plot_data <- siteSR_quantile_df %>%
+  rbind(
+    all_in_situ %>%
+      select(parameter, harmonized_value, harmonized_units) %>%
+      mutate(dataset = "WQP in situ")
+  ) %>%
+  mutate(dataset = factor(dataset,
+                          levels = c("WQP in situ", "AquaMatch matchups")),
+         param_units = factor(
+           x = parameter,
+           levels = c("chlorophyll", "doc", "sdd", "ssc", "tss"),
+           labels = c("Chla (ug/L)",
+                      "DOC (mg/L)",
+                      "SDD (m)",
+                      "SSC (mg/L)",
+                      "TSS (mg/L)")
+         )
+  )
+
+quantile_perc <- c(0,0.05,.25,.5,0.75,.95,1)
+quantile_labs <- c("<5%","5-25%","25-50%","50-75%","75-95%",">95%")
+
+quantile_colors <- RColorBrewer::brewer.pal(length(quantile_perc) + 2,"GnBu")[-c(1:2)]
+
+matchup_quantiles <- siteSR_quantile_df %>%
+  mutate(
+    param_units = factor(
+      x = parameter,
+      levels = c("chlorophyll", "doc", "sdd", "ssc", "tss"),
+      labels = c("Chla (ug/L)",
+                 "DOC (mg/L)",
+                 "SDD (m)",
+                 "SSC (mg/L)",
+                 "TSS (mg/L)")
+    )
+  ) %>%
+  group_by(param_units) %>%
+  # Create factor based on quantile breaks
+  mutate(q_values = cut(x = harmonized_value,
+                        breaks = quantile(harmonized_value, quantile_perc),
+                        include.lowest = TRUE, 
+                        labels = quantile_labs)) %>%
+  # Get mins, maxes per param * quantile
+  group_by(param_units, q_values) %>%
+  summarize(cut_min = min(harmonized_value, na.rm = TRUE),
+            cut_max = max(harmonized_value, na.rm = TRUE),
+            count = n()) %>%
+  filter(!is.na(q_values)) 
+
+
+ggplot() +
+  geom_rect(data = matchup_quantiles,
+            aes(xmin = cut_min, xmax = cut_max,
+                ymin = 1, ymax = 10^6,
+                fill = q_values),
+            color = NA) +
+  geom_density(data = quantile_plot_data, position = "dodge",
+               aes(x = harmonized_value, color = dataset),
+               fill = NA) +
+  facet_wrap(vars(param_units), scales = "free") +
+  scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))) +
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))) +
+  # geom_histogram(data = quantile_plot_data, position = "dodge",
+  #                aes(x = harmonized_value, color = dataset),
+  #                fill = "gray70",
+  #                bins = 50,
+  #                size = 0.5) +
+  # geom_density(data = quantile_plot_data, position = "dodge",
+  #              aes(x = harmonized_value, color = dataset),
+  #              fill = NA) +
+  scale_fill_manual(values = quantile_colors, name = "Matchup quantiles") +
+  scale_color_manual(values = c("red3", "black"), name = "Dataset") + 
+  theme(legend.position = "top", legend.direction = "horizontal", legend.box = "vertical") +
+  ylab("Count") + 
+  xlab("Depth or Concentration") +
+  guides(fill = guide_legend(byrow = T))
+
 ```
 
 
