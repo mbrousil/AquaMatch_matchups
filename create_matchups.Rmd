@@ -296,6 +296,7 @@ rm(matchups_sf, state_selection)
 gc()
 ```
 
+Comparison of data distributions for the in situ data and matchup data:
 ```{r plot-quantiles}
 siteSR_quantile_df <- siteSR_matchups %>%
   select(parameter, harmonized_value, harmonized_units) %>%
@@ -363,7 +364,7 @@ ggplot() +
   scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
                 labels = trans_format("log10", math_format(10^.x))) +
   geom_freqpoly(data = quantile_plot_data, position = "dodge",
-               aes(x = harmonized_value, color = dataset)) +
+                aes(x = harmonized_value, color = dataset)) +
   scale_fill_manual(values = quantile_colors, name = "Matchup quantiles") +
   scale_color_manual(values = c("red3", "black"), name = "Dataset") + 
   theme_bw() +
@@ -372,6 +373,76 @@ ggplot() +
   xlab("Depth or Concentration") +
   guides(fill = guide_legend(byrow = T))
 
+rm(quantile_plot_data, siteSR_quantile_df)
+gc()
+```
+
+
+Spectral response for each data quantile for each Landsat band:
+```{r plot-bands} 
+# Create some simple quality filters and a long dataset with bands arranged in
+# a long format.
+sr_long_median <- siteSR_matchups %>%
+  mutate(ndvi = (med_Nir - med_Red) / (med_Nir + med_Red),
+         type = ifelse(test = grepl("Lake", ResolvedMonitoringLocationTypeName),
+                       yes = "Lake",
+                       no = as.character(ResolvedMonitoringLocationTypeName)),
+         type = factor(type)) %>%
+  filter(ndvi < 0.5,
+         med_Swir2 < 300,
+         prop_clouds< .50,
+         pCount_dswe1 > 9) %>%
+  select(siteSR_id, ActivityStartDate, date, lat, lon,
+         med_Blue, med_Green, med_Red, med_Nir, med_Swir1, med_Swir2,
+         parameter, harmonized_value, harmonized_units, time_diff) %>%
+  pivot_longer(names_to = "band", values_to = "refl",
+               c(med_Blue, med_Green, med_Red, med_Nir, med_Swir1, med_Swir2)) %>%
+  mutate(band = factor(band,
+                       levels = c("med_Blue", "med_Green", "med_Red", "med_Nir",
+                                  "med_Swir1", "med_Swir2"),
+                       labels = c("blue","green","red","nir",
+                                  "swir1","swir2"))) %>%
+  filter(refl > 0,
+         !is.na(refl)) %>%
+  ungroup()
+
+sr_long_same <- sr_long_median %>%
+  # Previous filter to restrict to same date
+  # filter(date == as.Date(ActivityStartDate)) %>%
+  # Don't think was being used
+  # mutate(tss_bin = cut(tss,
+  #                    breaks=c(min(tss,na.rm=T),10,50,max(tss,na.rm=T)),
+  #                    labels=c("< 10 mg/L","10-50 mg/L",">50 mg/L"))) %>%
+  # mutate(tss_keep = tss) %>%
+  # gather(key=parameter,value=value,-SiteID,-date_unity,
+  #        -date,-band,-refl,-type,-tss.bin,-lat,-long,-tss.keep,-timediff) %>%
+  ungroup() %>%
+  group_by(parameter) %>%
+  # Previous filter, but removes everything that's not SDD
+  # filter(harmonized_value > 0,
+  #        log10(harmonized_value) < mean(log10(harmonized_value)) + sd(log10(harmonized_value)) * 4 &
+  #          log10(harmonized_value) > mean(log10(harmonized_value)) - sd(log10(harmonized_value)) * 4) %>%
+  mutate(quintiles = cut(harmonized_value,
+                         quantile(harmonized_value, quantile_perc),
+                         labels = quantile_labs)) %>%
+  group_by(parameter, quintiles) %>%
+  mutate(n = n(),
+         q_med = median(refl)) %>%
+  ungroup()
+
+# Plot data by quantile and band
+sr_long_same %>%
+  filter(!is.na(quintiles)) %>%
+  mutate(quintiles = factor(quintiles, levels = quantile_labs)) %>%
+  ggplot(., aes(x = band, y = refl, fill = quintiles)) +
+  # ylim(0, 1500) +
+  geom_boxplot(outlier.shape = NA, position = "dodge") +
+  facet_wrap(vars(parameter)) +
+  scale_fill_manual(values = quantile_colors, name = "") +
+  theme(legend.position = "top", legend.direction = "horizontal") +
+  ylab("Surface reflectance") +
+  xlab("Band") +
+  guides(fill = guide_legend(byrow = T))
 ```
 
 
@@ -383,7 +454,7 @@ in the data pub, but for now, grab from the lakeSR repo. One application for Roy
 beyond the input min/max values listed in the table. See implementation example
 in <https://github.com/steeleb/regional-clarity-RS-model/> (not on main repo
 yet) in the script `regional_clarity/3_make_models.R`. Note this example does
-not flag refelctance beyond min/max of input, but should probably be included in
+not flag reflectance beyond min/max of input, but should probably be included in
 our data pub, there's an explanation as to why it's important for Gardner model
 especially in the bookdown. I'm pretty sure I have code for that somewhere if
 it's helpful.
