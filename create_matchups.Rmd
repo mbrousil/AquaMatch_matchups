@@ -24,7 +24,7 @@ library(scales)
 library(tigris)
 
 # Files sourced from Drive are available to any Google User, the console will walk through authentication steps.
-drive_auth("therossyndicate@gmail.com")
+drive_auth()
 ```
 
 # Purpose
