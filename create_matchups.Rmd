@@ -445,6 +445,11 @@ sr_long_same %>%
   guides(fill = guide_legend(byrow = T))
 ```
 
+```{r cleanup}
+rm(sr_long_median, sr_long_same, matchup_quantiles, all_in_situ)
+gc()
+```
+
 
 ## Applying correction coefficients
 
@@ -459,8 +464,42 @@ our data pub, there's an explanation as to why it's important for Gardner model
 especially in the bookdown. I'm pretty sure I have code for that somewhere if
 it's helpful.
 
+```{r download-handoffs}
+handoff_download_path <- "in/lakeSR_data/"
+
+# Check for download directory, make if it does not exist
+if (!dir.exists(handoff_download_path)) {
+  dir.create(handoff_download_path, recursive = TRUE)
+}
+
+source(file = "src/retrieve_handoffs.R")
+```
+
 ```{r apply-handoffs}
-# Placeholder for handoff coefficients
+# First pivot for correction type
+handoffs_wide <- handoffs %>%
+  filter(dswe == "DSWE1", method != "lm", sat_to == "LS7") %>%
+  pivot_wider(names_from = correction, values_from = intercept:max_in_val,
+              id_cols = c(band, dswe, sat_corr, sat_to)) 
+
+# Based on https://github.com/steeleb/regional-clarity-RS-model/
+siteSR_matchups %>%
+  # Coordinate sat naming with missions that are similar enough to one another
+  mutate(sat_harmonize = case_when(
+    mission == "LT04" ~ "LS5",
+    mission == "LT05" ~ "LS5",
+    mission == "LE07" ~ "LS7",
+    mission == "LC08" ~ "LS8",
+    mission == "LC09" ~ "LS8",
+    .default = NA_character_
+  )) %>%
+  pivot_longer(names_to = "band",
+               cols = matches("_Blue|_Green|_Red|_Nir|_Swir|_SurfaceTemp"))
+  left_join(
+    x = .,
+    y = handoffs_wide,
+    by = c()
+  )
 ```
 
 Export the final product:
