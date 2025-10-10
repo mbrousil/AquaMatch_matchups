@@ -453,17 +453,9 @@ gc()
 
 ## Applying correction coefficients
 
-Apply the correction coefficients from lakeSR here. They will also eventually be
-in the data pub, but for now, grab from the lakeSR repo. One application for Roy
-(MLE) and one application for Gardner-style (poly). Also flag input reflectance
-beyond the input min/max values listed in the table. See implementation example
-in <https://github.com/steeleb/regional-clarity-RS-model/> (not on main repo
-yet) in the script `regional_clarity/3_make_models.R`. Note this example does
-not flag reflectance beyond min/max of input, but should probably be included in
-our data pub, there's an explanation as to why it's important for Gardner model
-especially in the bookdown. I'm pretty sure I have code for that somewhere if
-it's helpful.
-
+Last, we'll apply the correction coefficients from lakeSR. They will also 
+eventually be in the data pub, but for now, we can grab them from Google Drive.
+Downloading is the first step:
 ```{r download-handoffs}
 handoff_download_path <- "in/lakeSR_data/"
 
@@ -475,7 +467,9 @@ if (!dir.exists(handoff_download_path)) {
 source(file = "src/retrieve_handoffs.R")
 ```
 
-
+For now we filter for DSWE1, Deming or poly methods, and correcting only to
+Landsat 7. Handoff model parameter get stacked, column names edited to combine
+band and param names, and then pivoted back to a wider format.
 ```{r}
 # First pivot for correction type
 handoffs_wide <- handoffs %>%
@@ -491,10 +485,13 @@ handoffs_wide <- handoffs %>%
               values_from = value)
 ```
 
+Now we'll join the Roy handoffs with the matchup dataset:
 ```{r apply-roy}
-# Based on https://github.com/steeleb/regional-clarity-RS-model/
+# Based on https://github.com/steeleb/regional-clarity-RS-model/ and
+# https://github.com/rossyndicate/NW-CLP-RS/blob/main/f_apply_handoff_coefficients/src/apply_handoffs_to7.R
 roy_corrected_temporary <- siteSR_matchups %>%
-  # Coordinate sat naming with missions that are similar enough to one another
+  # Standardize sat naming and coordinate with missions that are similar enough
+  # to one another
   mutate(sat_harmonize = case_when(
     mission == "LT04" ~ "LS5",
     mission == "LT05" ~ "LS5",
@@ -518,7 +515,7 @@ roy_corrected_temporary <- siteSR_matchups %>%
     surfacetemp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_slope * med_SurfaceTemp,
     
     # If mission was LandSat 7, then corrected vals should be NA because they
-    # didn't need correction. Flag (NA) if something weird is going on:
+    # didn't need correction. Flag (NA in new col) if something weird is going on:
     # Blue
     blue_corr7_new = case_when(
       sat_harmonize == "LS7" & is.na(blue_corr7) ~ med_Blue,
@@ -548,7 +545,39 @@ roy_corrected_temporary <- siteSR_matchups %>%
       sat_harmonize == "LS7" & is.na(surfacetemp_corr7) ~ med_SurfaceTemp,
       sat_harmonize != "LS7" & !is.na(surfacetemp_corr7) ~ surfacetemp_corr7,
       .default = NA_real_
-    )
+    ),
+    
+    # Flag columns for when the values are out of the handoff input range
+    # Blue
+    flag_blue7 = ifelse(test = (med_Blue < med_Blue_max_in_val & 
+                                  med_Blue > med_Blue_min_in_val) |
+                          is.na(med_Blue_max_in_val),
+                        yes = NA_character_, 
+                        no = "extreme value"),
+    # Green
+    flag_green7 = ifelse(test = (med_Green < med_Green_max_in_val & 
+                                   med_Green > med_Green_min_in_val) |
+                           is.na(med_Green_max_in_val),
+                         yes = NA_character_, 
+                         no = "extreme value"),
+    # Red
+    flag_red7 = ifelse(test = (med_Red < med_Red_max_in_val & 
+                                 med_Red > med_Red_min_in_val) |
+                         is.na(med_Red_max_in_val),
+                       yes = NA_character_, 
+                       no = "extreme value"),
+    # NIR 
+    flag_nir7 = ifelse(test = (med_Nir < med_Nir_max_in_val & 
+                                 med_Nir > med_Nir_min_in_val) |
+                         is.na(med_Nir_max_in_val),
+                       yes = NA_character_, 
+                       no = "extreme value"),
+    # Surface temperature
+    flag_surfacetemp7 = ifelse(test = (med_SurfaceTemp < med_SurfaceTemp_max_in_val & 
+                                         med_SurfaceTemp > med_SurfaceTemp_min_in_val) |
+                                 is.na(med_SurfaceTemp_max_in_val),
+                               yes = NA_character_, 
+                               no = "extreme value")
   )
 
 roy_corrected_temporary %>%
@@ -582,12 +611,27 @@ roy_corrected <- roy_corrected_temporary %>%
     -contains("_new")
   )
 
+# How many values per band are flagged for being out of the input range?
+roy_corrected %>%
+  summarise(
+    across(contains("flag_"),
+           ~sum(str_count(as.character(.),
+                          regex("extreme value", ignore_case = TRUE)
+           ), na.rm = TRUE
+           )
+    )
+  ) %>%
+  pivot_longer(cols = everything()) %>%
+  arrange(desc(value))
+
 rm(roy_corrected_temporary)
 gc()
 ```
 
+And then Gardner:
 ```{r apply-gardner}
-# Based on https://github.com/steeleb/regional-clarity-RS-model/
+# Based on https://github.com/steeleb/regional-clarity-RS-model/ and
+# https://github.com/rossyndicate/NW-CLP-RS/blob/main/f_apply_handoff_coefficients/src/apply_handoffs_to7.R
 gardner_corrected_temporary <- siteSR_matchups %>%
   # Coordinate sat naming with missions that are similar enough to one another
   mutate(sat_harmonize = case_when(
@@ -645,7 +689,39 @@ gardner_corrected_temporary <- siteSR_matchups %>%
       sat_harmonize == "LS7" & is.na(surfacetemp_corr7) ~ med_SurfaceTemp,
       sat_harmonize != "LS7" & !is.na(surfacetemp_corr7) ~ surfacetemp_corr7,
       .default = NA_real_
-    )
+    ),
+    
+    # Flag columns for when the values are out of the handoff input range
+    # Blue
+    flag_blue7 = ifelse(test = (med_Blue < med_Blue_max_in_val & 
+                                  med_Blue > med_Blue_min_in_val) |
+                          is.na(med_Blue_max_in_val),
+                        yes = NA_character_, 
+                        no = "extreme value"),
+    # Green
+    flag_green7 = ifelse(test = (med_Green < med_Green_max_in_val & 
+                                   med_Green > med_Green_min_in_val) |
+                           is.na(med_Green_max_in_val),
+                         yes = NA_character_, 
+                         no = "extreme value"),
+    # Red
+    flag_red7 = ifelse(test = (med_Red < med_Red_max_in_val & 
+                                 med_Red > med_Red_min_in_val) |
+                         is.na(med_Red_max_in_val),
+                       yes = NA_character_, 
+                       no = "extreme value"),
+    # NIR 
+    flag_nir7 = ifelse(test = (med_Nir < med_Nir_max_in_val & 
+                                 med_Nir > med_Nir_min_in_val) |
+                         is.na(med_Nir_max_in_val),
+                       yes = NA_character_, 
+                       no = "extreme value"),
+    # Surface temperature
+    flag_surfacetemp7 = ifelse(test = (med_SurfaceTemp < med_SurfaceTemp_max_in_val & 
+                                         med_SurfaceTemp > med_SurfaceTemp_min_in_val) |
+                                 is.na(med_SurfaceTemp_max_in_val),
+                               yes = NA_character_, 
+                               no = "extreme value")
   )
 
 gardner_corrected_temporary %>%
@@ -679,13 +755,25 @@ gardner_corrected <- gardner_corrected_temporary %>%
     -contains("_new")
   )
 
+# How many values per band are flagged for being out of the input range?
+gardner_corrected %>%
+  summarise(
+    across(contains("flag_"),
+           ~sum(str_count(as.character(.),
+                          regex("extreme value", ignore_case = TRUE)
+           ), na.rm = TRUE
+           )
+    )
+  ) %>%
+  pivot_longer(cols = everything()) %>%
+  arrange(desc(value))
+
 rm(gardner_corrected_temporary)
 gc()
 
 ```
 
-
-Export the final product:
+Export the final products:
 ```{r export}
 # Where to export the matchup data
 output_path <- "out/"
@@ -696,6 +784,12 @@ if (!dir.exists(output_path)) {
 }
 
 # Export matchups
-write_feather(x = siteSR_matchups,
-              sink = file.path(output_path, "siteSR_matchups.feather"))
+write_feather(x = roy_corrected,
+              sink = file.path(output_path,
+                               "siteSR_matchups_roy_correction.feather"))
+
+write_feather(x = gardner_corrected,
+              sink = file.path(output_path,
+                               "siteSR_matchups_gardner_correction.feather"))
+
 ```
