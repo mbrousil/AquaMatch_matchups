@@ -24,7 +24,7 @@ library(scales)
 library(tigris)
 
 # Files sourced from Drive are available to any Google User, the console will walk through authentication steps.
-drive_auth()
+drive_auth("therossyndicate@gmail.com")
 ```
 
 # Purpose
@@ -479,9 +479,15 @@ source(file = "src/retrieve_handoffs.R")
 # First pivot for correction type
 handoffs_wide <- handoffs %>%
   filter(dswe == "DSWE1", method != "lm", sat_to == "LS7") %>%
-  pivot_wider(names_from = correction, values_from = intercept:max_in_val,
-              id_cols = c(band, dswe, sat_corr, sat_to)) 
-
+  pivot_longer(
+    cols = intercept:max_in_val,
+    names_to = "coefs",
+    values_to = "value"
+  ) %>%
+  mutate(new_column = paste(band, coefs, sep = "_")) %>%
+  select(-band, -coefs) %>%
+  pivot_wider(names_from = new_column, 
+              values_from = value)
 # Based on https://github.com/steeleb/regional-clarity-RS-model/
 siteSR_matchups %>%
   # Coordinate sat naming with missions that are similar enough to one another
@@ -495,11 +501,11 @@ siteSR_matchups %>%
   )) %>%
   pivot_longer(names_to = "band",
                cols = matches("_Blue|_Green|_Red|_Nir|_Swir|_SurfaceTemp"))
-  left_join(
-    x = .,
-    y = handoffs_wide,
-    by = c()
-  )
+left_join(
+  x = .,
+  y = handoffs_wide,
+  by = c()
+)
 ```
 
 Export the final product:
