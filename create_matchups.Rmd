@@ -475,7 +475,8 @@ if (!dir.exists(handoff_download_path)) {
 source(file = "src/retrieve_handoffs.R")
 ```
 
-```{r apply-handoffs}
+
+```{r}
 # First pivot for correction type
 handoffs_wide <- handoffs %>%
   filter(dswe == "DSWE1", method != "lm", sat_to == "LS7") %>%
@@ -488,9 +489,11 @@ handoffs_wide <- handoffs %>%
   select(-band, -coefs) %>%
   pivot_wider(names_from = new_column, 
               values_from = value)
+```
 
+```{r apply-roy}
 # Based on https://github.com/steeleb/regional-clarity-RS-model/
-roy_corrected <- siteSR_matchups %>%
+roy_corrected_temporary <- siteSR_matchups %>%
   # Coordinate sat naming with missions that are similar enough to one another
   mutate(sat_harmonize = case_when(
     mission == "LT04" ~ "LS5",
@@ -512,10 +515,80 @@ roy_corrected <- siteSR_matchups %>%
     green_corr7 = med_Green_intercept + med_Green_slope * med_Green,
     blue_corr7 = med_Blue_intercept + med_Blue_slope * med_Blue,
     nir_corr7 = med_Nir_intercept + med_Nir_slope * med_Nir,
-    surface_temp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_slope * med_SurfaceTemp
+    surfacetemp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_slope * med_SurfaceTemp,
+    
+    # If mission was LandSat 7, then corrected vals should be NA because they
+    # didn't need correction. Flag (NA) if something weird is going on:
+    # Blue
+    blue_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(blue_corr7) ~ med_Blue,
+      sat_harmonize != "LS7" & !is.na(blue_corr7) ~ blue_corr7,
+      .default = NA_real_
+    ),
+    # Green
+    green_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(green_corr7) ~ med_Green,
+      sat_harmonize != "LS7" & !is.na(green_corr7) ~ green_corr7,
+      .default = NA_real_
+    ),
+    # Red
+    red_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(red_corr7) ~ med_Red,
+      sat_harmonize != "LS7" & !is.na(red_corr7) ~ red_corr7,
+      .default = NA_real_
+    ),
+    # NIR
+    nir_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(nir_corr7) ~ med_Nir,
+      sat_harmonize != "LS7" & !is.na(nir_corr7) ~ nir_corr7,
+      .default = NA_real_
+    ),
+    # Surface temperature
+    surfacetemp_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(surfacetemp_corr7) ~ med_SurfaceTemp,
+      sat_harmonize != "LS7" & !is.na(surfacetemp_corr7) ~ surfacetemp_corr7,
+      .default = NA_real_
+    )
   )
 
-gardner_corrected <- siteSR_matchups %>%
+roy_corrected_temporary %>%
+  filter(is.na(blue_corr7_new)) %>%
+  nrow()
+roy_corrected_temporary %>%
+  filter(is.na(green_corr7_new)) %>%
+  nrow()
+roy_corrected_temporary %>%
+  filter(is.na(red_corr7_new)) %>%
+  nrow()
+roy_corrected_temporary %>%
+  filter(is.na(nir_corr7_new)) %>%
+  nrow()
+# ~13K rows, should originate from NA med_SurfaceTemp values
+roy_corrected_temporary %>%
+  filter(is.na(surfacetemp_corr7_new)) %>%
+  nrow()
+
+# No unexpected NAs in the new columns, so will simplify the final outputs
+roy_corrected <- roy_corrected_temporary %>%
+  mutate(
+    blue_corr7 = blue_corr7_new,
+    green_corr7 = green_corr7_new,
+    red_corr7 = red_corr7_new,
+    nir_corr7 = nir_corr7_new,
+    surfacetemp_corr7 = surfacetemp_corr7_new
+  ) %>%
+  select(
+    -c(med_Blue_intercept:med_SurfaceTemp_max_in_val),
+    -contains("_new")
+  )
+
+rm(roy_corrected_temporary)
+gc()
+```
+
+```{r apply-gardner}
+# Based on https://github.com/steeleb/regional-clarity-RS-model/
+gardner_corrected_temporary <- siteSR_matchups %>%
   # Coordinate sat naming with missions that are similar enough to one another
   mutate(sat_harmonize = case_when(
     mission == "LT04" ~ "LS5",
@@ -533,13 +606,84 @@ gardner_corrected <- siteSR_matchups %>%
     by = c("sat_harmonize" = "sat_corr")
   ) %>%
   mutate(
+    
+    # Do the handoff calcs
     red_corr7 = med_Red_intercept + med_Red_B1 * med_Red + med_Red_B2 * med_Red^2,
     green_corr7 = med_Green_intercept + med_Green_B1 * med_Green + med_Green_B2 * med_Green^2,
     blue_corr7 = med_Blue_intercept + med_Blue_B1 * med_Blue + med_Blue_B2 * med_Blue^2,
     nir_corr7 = med_Nir_intercept + med_Nir_B1 * med_Nir + med_Nir_B2 * med_Nir^2,
-    surface_temp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_B1 * med_SurfaceTemp + med_SurfaceTemp_B2 * med_SurfaceTemp^2
+    surfacetemp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_B1 * med_SurfaceTemp + med_SurfaceTemp_B2 * med_SurfaceTemp^2,
+    
+    # If mission was LandSat 7, then corrected vals should be NA because they
+    # didn't need correction. Flag (NA) if something weird is going on:
+    # Blue
+    blue_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(blue_corr7) ~ med_Blue,
+      sat_harmonize != "LS7" & !is.na(blue_corr7) ~ blue_corr7,
+      .default = NA_real_
+    ),
+    # Green
+    green_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(green_corr7) ~ med_Green,
+      sat_harmonize != "LS7" & !is.na(green_corr7) ~ green_corr7,
+      .default = NA_real_
+    ),
+    # Red
+    red_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(red_corr7) ~ med_Red,
+      sat_harmonize != "LS7" & !is.na(red_corr7) ~ red_corr7,
+      .default = NA_real_
+    ),
+    # NIR
+    nir_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(nir_corr7) ~ med_Nir,
+      sat_harmonize != "LS7" & !is.na(nir_corr7) ~ nir_corr7,
+      .default = NA_real_
+    ),
+    # Surface temperature
+    surfacetemp_corr7_new = case_when(
+      sat_harmonize == "LS7" & is.na(surfacetemp_corr7) ~ med_SurfaceTemp,
+      sat_harmonize != "LS7" & !is.na(surfacetemp_corr7) ~ surfacetemp_corr7,
+      .default = NA_real_
+    )
   )
+
+gardner_corrected_temporary %>%
+  filter(is.na(blue_corr7_new)) %>%
+  nrow()
+gardner_corrected_temporary %>%
+  filter(is.na(green_corr7_new)) %>%
+  nrow()
+gardner_corrected_temporary %>%
+  filter(is.na(red_corr7_new)) %>%
+  nrow()
+gardner_corrected_temporary %>%
+  filter(is.na(nir_corr7_new)) %>%
+  nrow()
+# ~13K rows, should originate from NA med_SurfaceTemp values
+gardner_corrected_temporary %>%
+  filter(is.na(surfacetemp_corr7_new)) %>%
+  nrow()
+
+# No unexpected NAs in the new columns, so will simplify the final outputs
+gardner_corrected <- gardner_corrected_temporary %>%
+  mutate(
+    blue_corr7 = blue_corr7_new,
+    green_corr7 = green_corr7_new,
+    red_corr7 = red_corr7_new,
+    nir_corr7 = nir_corr7_new,
+    surfacetemp_corr7 = surfacetemp_corr7_new
+  ) %>%
+  select(
+    -c(med_Blue_intercept:med_SurfaceTemp_max_in_val),
+    -contains("_new")
+  )
+
+rm(gardner_corrected_temporary)
+gc()
+
 ```
+
 
 Export the final product:
 ```{r export}
