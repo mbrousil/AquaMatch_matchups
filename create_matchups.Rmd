@@ -488,8 +488,9 @@ handoffs_wide <- handoffs %>%
   select(-band, -coefs) %>%
   pivot_wider(names_from = new_column, 
               values_from = value)
+
 # Based on https://github.com/steeleb/regional-clarity-RS-model/
-siteSR_matchups %>%
+roy_corrected <- siteSR_matchups %>%
   # Coordinate sat naming with missions that are similar enough to one another
   mutate(sat_harmonize = case_when(
     mission == "LT04" ~ "LS5",
@@ -499,13 +500,45 @@ siteSR_matchups %>%
     mission == "LC09" ~ "LS8",
     .default = NA_character_
   )) %>%
-  pivot_longer(names_to = "band",
-               cols = matches("_Blue|_Green|_Red|_Nir|_Swir|_SurfaceTemp"))
-left_join(
-  x = .,
-  y = handoffs_wide,
-  by = c()
-)
+  left_join(
+    x = .,
+    y = handoffs_wide %>%
+      filter(correction == "Roy") %>%
+      select(-matches("B1|B2")),
+    by = c("sat_harmonize" = "sat_corr")
+  ) %>%
+  mutate(
+    red_corr7 = med_Red_intercept + med_Red_slope * med_Red,
+    green_corr7 = med_Green_intercept + med_Green_slope * med_Green,
+    blue_corr7 = med_Blue_intercept + med_Blue_slope * med_Blue,
+    nir_corr7 = med_Nir_intercept + med_Nir_slope * med_Nir,
+    surface_temp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_slope * med_SurfaceTemp
+  )
+
+gardner_corrected <- siteSR_matchups %>%
+  # Coordinate sat naming with missions that are similar enough to one another
+  mutate(sat_harmonize = case_when(
+    mission == "LT04" ~ "LS5",
+    mission == "LT05" ~ "LS5",
+    mission == "LE07" ~ "LS7",
+    mission == "LC08" ~ "LS8",
+    mission == "LC09" ~ "LS8",
+    .default = NA_character_
+  )) %>%
+  left_join(
+    x = .,
+    y = handoffs_wide %>%
+      filter(correction == "Gardner") %>%
+      select(-contains("slope")),
+    by = c("sat_harmonize" = "sat_corr")
+  ) %>%
+  mutate(
+    red_corr7 = med_Red_intercept + med_Red_B1 * med_Red + med_Red_B2 * med_Red^2,
+    green_corr7 = med_Green_intercept + med_Green_B1 * med_Green + med_Green_B2 * med_Green^2,
+    blue_corr7 = med_Blue_intercept + med_Blue_B1 * med_Blue + med_Blue_B2 * med_Blue^2,
+    nir_corr7 = med_Nir_intercept + med_Nir_B1 * med_Nir + med_Nir_B2 * med_Nir^2,
+    surface_temp_corr7 = med_SurfaceTemp_intercept + med_SurfaceTemp_B1 * med_SurfaceTemp + med_SurfaceTemp_B2 * med_SurfaceTemp^2
+  )
 ```
 
 Export the final product:
