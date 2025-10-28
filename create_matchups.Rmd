@@ -473,7 +473,7 @@ band and param names, and then pivoted back to a wider format.
 ```{r}
 # First pivot for correction type
 handoffs_wide <- handoffs %>%
-  filter(dswe == "DSWE1", method != "lm", sat_to == "LS7") %>%
+  filter(dswe == "DSWE1a", method != "lm", sat_to == "LS7") %>%
   pivot_longer(
     cols = intercept:max_in_val,
     names_to = "coefs",
